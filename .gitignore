@@ -1,0 +1,25 @@
+# Personal/local-only builds and host configuration
+/CodexPrivateApp-1.0.apk
+/CodexPrivateApp-1.1-usb.apk
+/CodexPrivateApp-1.1-usb.apk.idsig
+/mobile-host/
+/start-mobile-host.ps1
+/启动Codex手机端.cmd
+/手机端使用说明.md
+/System.Management.Automation.Internal.Host.InternalHost/
+/员工分发包/
+
+# Generated runtime files
+手机连接地址.txt
+*.log
+/dist/
+
+# Third-party installer: distribute through the official Tailscale channel
+Tailscale-Android-*.apk
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+

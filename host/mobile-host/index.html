@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>Codex 私人端</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      --bg: #f5f6f8;
+      --surface: #ffffff;
+      --surface-muted: #eef1f4;
+      --text: #17191d;
+      --muted: #686e78;
+      --line: #d9dde3;
+      --accent: #167856;
+      --accent-text: #ffffff;
+      --danger: #b62c2c;
+      --radius: 8px;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { margin: 0; background: var(--bg); color: var(--text); overflow: hidden; }
+    button, input, textarea { font: inherit; letter-spacing: 0; }
+    button { cursor: pointer; }
+    .app { height: 100%; display: grid; grid-template-rows: auto 1fr; }
+    .topbar {
+      min-height: 56px; display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px;
+      align-items: center; gap: 8px; padding: max(8px, env(safe-area-inset-top)) 10px 8px;
+      background: var(--surface); border-bottom: 1px solid var(--line);
+    }
+    .title { min-width: 0; }
+    .title strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; }
+    .status { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .icon-button {
+      width: 44px; height: 44px; border: 1px solid transparent; border-radius: var(--radius);
+      background: transparent; color: var(--text); font-size: 24px; line-height: 1;
+    }
+    .icon-button:active { background: var(--surface-muted); }
+    .layout { min-height: 0; display: grid; grid-template-columns: minmax(260px, 34%) minmax(0, 1fr); }
+    .sidebar { min-height: 0; display: grid; grid-template-rows: auto auto 1fr; background: var(--surface); border-right: 1px solid var(--line); }
+    .sidebar-head { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 12px; }
+    .search { width: 100%; height: 40px; border: 1px solid var(--line); border-radius: var(--radius); padding: 0 12px; background: var(--bg); color: var(--text); }
+    .new-button { height: 40px; border: 0; border-radius: var(--radius); padding: 0 14px; background: var(--accent); color: var(--accent-text); font-weight: 700; }
+    .section-label { padding: 0 12px 8px; color: var(--muted); font-size: 12px; }
+    .thread-list { min-height: 0; overflow: auto; padding: 0 8px 12px; }
+    .thread {
+      width: 100%; min-height: 64px; display: grid; gap: 4px; text-align: left; border: 0;
+      border-radius: var(--radius); padding: 10px; background: transparent; color: var(--text);
+    }
+    .thread.active { background: var(--surface-muted); }
+    .thread-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; }
+    .thread-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 12px; }
+    .main { min-width: 0; min-height: 0; display: grid; grid-template-rows: 1fr auto; }
+    .messages { min-height: 0; overflow: auto; padding: 16px max(14px, calc((100% - 780px) / 2)); }
+    .empty { max-width: 520px; margin: 18vh auto 0; text-align: center; color: var(--muted); line-height: 1.6; }
+    .message { max-width: 760px; margin: 0 auto 18px; }
+    .role { margin-bottom: 5px; color: var(--muted); font-size: 12px; font-weight: 700; }
+    .bubble { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
+    .message.user .bubble { width: fit-content; max-width: 88%; margin-left: auto; padding: 10px 12px; border-radius: var(--radius); background: #dcefe7; }
+    .message.user .role { text-align: right; }
+    .composer { padding: 10px max(12px, calc((100% - 780px) / 2)) max(10px, env(safe-area-inset-bottom)); background: var(--surface); border-top: 1px solid var(--line); }
+    .compose-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+    textarea { width: 100%; min-height: 44px; max-height: 150px; resize: none; border: 1px solid var(--line); border-radius: var(--radius); padding: 11px 12px; background: var(--bg); color: var(--text); }
+    .send { width: 48px; height: 44px; border: 0; border-radius: var(--radius); background: var(--accent); color: var(--accent-text); font-size: 20px; }
+    .send:disabled { opacity: .45; }
+    .approval { position: fixed; inset: 0; z-index: 10; display: grid; place-items: end center; padding: 16px; background: rgb(0 0 0 / .42); }
+    .approval[hidden] { display: none; }
+    .approval-panel { width: min(560px, 100%); max-height: 76vh; overflow: auto; background: var(--surface); border-radius: var(--radius); padding: 16px; }
+    .approval-panel h2 { margin: 0 0 8px; font-size: 18px; }
+    .approval-detail { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--muted); line-height: 1.45; }
+    .approval-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
+    .approve, .decline { height: 44px; border-radius: var(--radius); font-weight: 700; }
+    .approve { border: 0; background: var(--accent); color: var(--accent-text); }
+    .decline { border: 1px solid var(--line); background: var(--surface); color: var(--danger); }
+    .error { color: var(--danger); }
+    @media (max-width: 760px) {
+      .layout { display: block; }
+      .sidebar, .main { height: 100%; }
+      .sidebar { border-right: 0; }
+      .layout:not(.show-chat) .main { display: none; }
+      .layout.show-chat .sidebar { display: none; }
+      .message.user .bubble { max-width: 92%; }
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { color-scheme: dark; --bg: #111315; --surface: #191c20; --surface-muted: #252a30; --text: #f0f2f4; --muted: #a2a8b1; --line: #343941; --accent: #35a77d; --accent-text: #07140f; --danger: #ff8d8d; }
+      .message.user .bubble { background: #22483a; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <button id="back" class="icon-button" type="button" aria-label="返回任务列表" title="返回任务列表">&#8249;</button>
+      <div class="title"><strong id="title">Codex 私人端</strong><div id="status" class="status">正在连接电脑...</div></div>
+      <button id="refresh" class="icon-button" type="button" aria-label="刷新" title="刷新">&#8635;</button>
+    </header>
+    <div id="layout" class="layout">
+      <aside class="sidebar">
+        <div class="sidebar-head">
+          <input id="search" class="search" type="search" placeholder="搜索任务" autocomplete="off">
+          <button id="newThread" class="new-button" type="button">新建</button>
+        </div>
+        <div class="section-label">最近任务</div>
+        <div id="threads" class="thread-list"></div>
+      </aside>
+      <main class="main">
+        <div id="messages" class="messages"><div class="empty">选择一个任务，或新建任务。</div></div>
+        <form id="composer" class="composer">
+          <div class="compose-row">
+            <textarea id="input" rows="1" placeholder="给 Codex 发消息" disabled></textarea>
+            <button id="send" class="send" type="submit" aria-label="发送" title="发送" disabled>&#8593;</button>
+          </div>
+        </form>
+      </main>
+    </div>
+  </div>
+  <div id="approval" class="approval" hidden>
+    <section class="approval-panel">
+      <h2 id="approvalTitle">需要确认</h2>
+      <div id="approvalDetail" class="approval-detail"></div>
+      <div class="approval-actions">
+        <button id="decline" class="decline" type="button">拒绝</button>
+        <button id="approve" class="approve" type="button">允许</button>
+      </div>
+    </section>
+  </div>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const state = { socket: null, requests: new Map(), requestId: 1, threads: [], selectedId: null, streaming: null, approval: null };
+
+    function setStatus(text, error = false) {
+      $("status").textContent = text;
+      $("status").classList.toggle("error", error);
+    }
+
+    function rpc(method, params) {
+      if (!state.socket || state.socket.readyState !== WebSocket.OPEN) return Promise.reject(new Error("尚未连接电脑"));
+      const id = state.requestId++;
+      state.socket.send(JSON.stringify({ id, method, params }));
+      return new Promise((resolve, reject) => {
+        state.requests.set(String(id), { resolve, reject });
+        setTimeout(() => {
+          if (state.requests.delete(String(id))) reject(new Error(`${method} 请求超时`));
+        }, 30000);
+      });
+    }
+
+    function connect() {
+      setStatus("正在连接电脑...");
+      state.socket?.close();
+      const socketProtocol = location.protocol === "https:" ? "wss:" : "ws:";
+      state.socket = new WebSocket(`${socketProtocol}//${location.host}/codex`);
+      state.socket.onopen = async () => {
+        try {
+          await rpc("initialize", {
+            clientInfo: { name: "codex-private-android", title: "Codex 私人端", version: "1.0" },
+            capabilities: { experimentalApi: true, requestAttestation: false }
+          });
+          setStatus("已连接电脑");
+          await loadThreads();
+        } catch (error) {
+          setStatus(error.message, true);
+        }
+      };
+      state.socket.onmessage = (event) => {
+        try { handleMessage(JSON.parse(event.data)); }
+        catch (error) { setStatus(`消息解析失败：${error.message}`, true); }
+      };
+      state.socket.onclose = () => {
+        $("input").disabled = true;
+        $("send").disabled = true;
+        setStatus("电脑连接已断开", true);
+      };
+      state.socket.onerror = () => setStatus("无法连接电脑端服务", true);
+    }
+
+    function handleMessage(message) {
+      if (message.id != null && (Object.hasOwn(message, "result") || Object.hasOwn(message, "error"))) {
+        const pending = state.requests.get(String(message.id));
+        if (!pending) return;
+        state.requests.delete(String(message.id));
+        if (message.error) pending.reject(new Error(message.error.message || "请求失败"));
+        else pending.resolve(message.result);
+        return;
+      }
+      if (message.id != null && message.method) {
+        showApproval(message);
+        return;
+      }
+      handleNotification(message.method, message.params || {});
+    }
+
+    function handleNotification(method, params) {
+      const eventThreadId = params.threadId || params.thread_id || params.thread?.id || params.turn?.threadId;
+      if (eventThreadId && state.selectedId && eventThreadId !== state.selectedId) return;
+      if (method === "item/agentMessage/delta") {
+        appendDelta(params.delta || params.text || "");
+        setStatus("Codex 正在回复...");
+      } else if (method === "turn/started") {
+        state.streaming = null;
+        setStatus("Codex 正在处理...");
+      } else if (method === "turn/completed" || method === "thread/status/changed") {
+        state.streaming = null;
+        setStatus("回复完成");
+        if (state.selectedId) refreshThread(state.selectedId).catch((error) => setStatus(error.message, true));
+        loadThreads(false).catch(() => {});
+      }
+    }
+
+    async function loadThreads(render = true) {
+      const response = await rpc("thread/list", { limit: 100, archived: false });
+      state.threads = Array.isArray(response?.data) ? response.data : [];
+      if (render) renderThreads();
+      else renderThreads();
+      setStatus(`已连接，共 ${state.threads.length} 个任务`);
+    }
+
+    function renderThreads() {
+      const query = $("search").value.trim().toLowerCase();
+      const list = state.threads.filter((thread) => [thread.name, thread.preview, thread.cwd].filter(Boolean).join(" ").toLowerCase().includes(query));
+      $("threads").innerHTML = "";
+      if (!list.length) {
+        $("threads").innerHTML = '<div class="empty">没有匹配的任务</div>';
+        return;
+      }
+      for (const thread of list) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `thread${thread.id === state.selectedId ? " active" : ""}`;
+        const name = document.createElement("div");
+        name.className = "thread-name";
+        name.textContent = thread.name || thread.preview || "未命名任务";
+        const meta = document.createElement("div");
+        meta.className = "thread-meta";
+        meta.textContent = `${formatTime(thread.updatedAt || thread.createdAt)} · ${projectName(thread.cwd)}`;
+        button.append(name, meta);
+        button.onclick = () => selectThread(thread.id);
+        $("threads").append(button);
+      }
+    }
+
+    async function selectThread(threadId) {
+      state.selectedId = threadId;
+      state.streaming = null;
+      renderThreads();
+      $("layout").classList.add("show-chat");
+      $("messages").innerHTML = '<div class="empty">正在读取任务...</div>';
+      $("input").disabled = true;
+      $("send").disabled = true;
+      try {
+        await rpc("thread/resume", { threadId, excludeTurns: true });
+        await refreshThread(threadId);
+        $("input").disabled = false;
+        $("send").disabled = false;
+        $("input").focus();
+      } catch (error) {
+        setStatus(error.message, true);
+      }
+    }
+
+    async function refreshThread(threadId) {
+      const response = await rpc("thread/read", { threadId, includeTurns: true });
+      if (threadId !== state.selectedId) return;
+      const thread = response?.thread;
+      $("title").textContent = thread?.name || thread?.preview || "Codex 任务";
+      renderMessages(thread?.turns || []);
+    }
+
+    function renderMessages(turns) {
+      $("messages").innerHTML = "";
+      for (const turn of turns) {
+        for (const item of turn.items || []) {
+          if (item.type === "userMessage") appendMessage("user", inputText(item.content));
+          if (item.type === "agentMessage" && item.text) appendMessage("assistant", item.text);
+          if (item.type === "plan" && item.text) appendMessage("assistant", item.text);
+        }
+      }
+      if (!$("messages").children.length) $("messages").innerHTML = '<div class="empty">这个任务还没有消息。</div>';
+      scrollMessages();
+    }
+
+    function inputText(content) {
+      return (content || []).filter((part) => part.type === "text").map((part) => part.text).join("\n");
+    }
+
+    function appendMessage(role, text) {
+      if (!text) return null;
+      $("messages").querySelector(".empty")?.remove();
+      const wrap = document.createElement("article");
+      wrap.className = `message ${role === "user" ? "user" : "assistant"}`;
+      const label = document.createElement("div");
+      label.className = "role";
+      label.textContent = role === "user" ? "你" : "Codex";
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+      bubble.textContent = text;
+      wrap.append(label, bubble);
+      $("messages").append(wrap);
+      scrollMessages();
+      return bubble;
+    }
+
+    function appendDelta(delta) {
+      if (!delta) return;
+      if (!state.streaming) state.streaming = { bubble: appendMessage("assistant", ""), text: "" };
+      if (!state.streaming.bubble) state.streaming.bubble = appendMessage("assistant", " ");
+      state.streaming.text += delta;
+      state.streaming.bubble.textContent = state.streaming.text;
+      scrollMessages();
+    }
+
+    function scrollMessages() {
+      requestAnimationFrame(() => { $("messages").scrollTop = $("messages").scrollHeight; });
+    }
+
+    function showApproval(message) {
+      const method = message.method;
+      const params = message.params || {};
+      let title = "Codex 需要确认";
+      let detail = params.reason || "是否允许继续？";
+      let acceptResult = { decision: "accept" };
+      let declineResult = { decision: "decline" };
+      if (method.includes("commandExecution")) {
+        title = "允许运行命令？";
+        detail = [params.reason, params.command, params.cwd].filter(Boolean).join("\n\n");
+      } else if (method.includes("fileChange")) {
+        title = "允许修改文件？";
+        detail = [params.reason, ...(params.changes || []).map((item) => item.path || JSON.stringify(item))].filter(Boolean).join("\n");
+      } else if (method === "item/tool/requestUserInput") {
+        title = "Codex 需要你的输入";
+        detail = JSON.stringify(params.questions || params, null, 2);
+        acceptResult = { answers: {} };
+        declineResult = { answers: {} };
+      } else if (method === "mcpServer/elicitation/request") {
+        title = "外部工具请求输入";
+        detail = params.message || JSON.stringify(params, null, 2);
+        acceptResult = { action: "accept", content: null };
+        declineResult = { action: "decline", content: null };
+      } else if (method === "item/permissions/requestApproval") {
+        title = "Codex 请求更多权限";
+        detail = [params.reason, JSON.stringify(params.permissions || {}, null, 2)].filter(Boolean).join("\n\n");
+        acceptResult = null;
+        declineResult = null;
+      }
+      state.approval = { id: message.id, acceptResult, declineResult };
+      $("approvalTitle").textContent = title;
+      $("approvalDetail").textContent = detail || "是否允许继续？";
+      $("approve").disabled = acceptResult == null;
+      $("approval").hidden = false;
+    }
+
+    function answerApproval(accepted) {
+      if (!state.approval) return;
+      const result = accepted ? state.approval.acceptResult : state.approval.declineResult;
+      if (result != null) state.socket.send(JSON.stringify({ id: state.approval.id, result }));
+      else state.socket.send(JSON.stringify({ id: state.approval.id, error: { code: -32000, message: "手机端暂不支持该权限类型" } }));
+      state.approval = null;
+      $("approval").hidden = true;
+    }
+
+    async function createThread() {
+      const cwd = prompt("新任务目录（请填写这台电脑上的完整路径）", "");
+      if (cwd == null) return;
+      try {
+        const response = await rpc("thread/start", { cwd: cwd.trim() || null, permissions: ":workspace", approvalPolicy: "on-request" });
+        const thread = response?.thread;
+        await loadThreads();
+        if (thread?.id) await selectThread(thread.id);
+      } catch (error) {
+        setStatus(error.message, true);
+      }
+    }
+
+    function formatTime(value) {
+      if (!value) return "未知时间";
+      return new Date(value < 100000000000 ? value * 1000 : value).toLocaleString([], { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+    }
+
+    function projectName(path) {
+      const parts = String(path || "").split(/[\\/]/).filter(Boolean);
+      return parts.at(-1) || "未知目录";
+    }
+
+    $("refresh").onclick = () => state.selectedId ? refreshThread(state.selectedId).catch((error) => setStatus(error.message, true)) : loadThreads().catch((error) => setStatus(error.message, true));
+    $("back").onclick = () => { $("layout").classList.remove("show-chat"); $("title").textContent = "Codex 私人端"; };
+    $("search").oninput = renderThreads;
+    $("newThread").onclick = createThread;
+    $("approve").onclick = () => answerApproval(true);
+    $("decline").onclick = () => answerApproval(false);
+    $("composer").onsubmit = async (event) => {
+      event.preventDefault();
+      const text = $("input").value.trim();
+      if (!text || !state.selectedId) return;
+      $("input").value = "";
+      appendMessage("user", text);
+      state.streaming = null;
+      setStatus("正在发送...");
+      try {
+        await rpc("turn/start", { threadId: state.selectedId, clientUserMessageId: `android-${Date.now()}`, input: [{ type: "text", text, text_elements: [] }] });
+        setStatus("Codex 正在处理...");
+      } catch (error) {
+        setStatus(error.message, true);
+      }
+    };
+    $("input").oninput = () => {
+      $("input").style.height = "44px";
+      $("input").style.height = `${Math.min($("input").scrollHeight, 150)}px`;
+    };
+
+    connect();
+  </script>
+</body>
+</html>
